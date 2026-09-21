@@ -1,0 +1,5 @@
+# gradlew harus LF supaya bisa dieksekusi di Linux/CI, walaupun di-commit dari Windows.
+gradlew text eol=lf
+*.bat   text eol=crlf
+*.jar   binary
+*.png   binary
