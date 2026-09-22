@@ -52,11 +52,34 @@ jobs:
         run: chmod +x gradlew
 
       # Test SEBELUM build: kalau jaminan keamanan rusak, APK tidak dibuat.
+      # Output disalin ke gradle.log supaya error bisa diringkas di akhir.
       - name: Unit tests
-        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace 2>&1 | tee -a gradle.log
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee -a gradle.log
+
+      # Pesan error asli sering tenggelam di ratusan baris stack trace.
+      # Langkah ini menaruh baris pentingnya di halaman Summary run.
+      - name: Ringkasan error
+        if: failure()
+        shell: bash
+        run: |
+          touch gradle.log
+          PATTERN='^e: |ERROR:|error:|What went wrong|Execution failed for task|> Task .* FAILED|There were failing tests|Caused by: '
+          {
+            echo "## Build gagal - baris penting"
+            echo '```'
+            grep -E "$PATTERN" gradle.log | grep -vE '^\s+at |^\s+\.\.\. [0-9]+ more' | awk '!seen[$0]++' | head -80
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E "$PATTERN" gradle.log | grep -vE '^\s+at ' | awk '!seen[$0]++' | head -80 || true
 
       - name: Rename APK
         run: |
